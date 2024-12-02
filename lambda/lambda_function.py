@@ -1,5 +1,6 @@
 import os
 import boto3
+from utils import process_prompt, get_configuration
 import logging
 
 logger = logging.getLogger()
@@ -9,45 +10,36 @@ dynamodb = boto3.resource('dynamodb')
 table_name = os.environ['DYNAMODB_TABLE']
 
 def lambda_handler(event, context):
-    logger.info(f"Event received: {event}")
-    
     table = dynamodb.Table(table_name)
+    config_key = {"pk": "CONFIGURATION", "sk": "BEDROCK_SETTINGS"}
+    bedrock_settings = get_configuration(table, config_key)
 
-    prompt_id = event.get("prompt_id")
-    parameters = event.get("parameters", {})
-
-    if not prompt_id:
-        logger.error("Missing 'prompt_id' in the event")
-        return {
-            "statusCode": 400,
-            "body": "Missing 'prompt_id' in the event"
-        }
-
-    try:
-        response = table.get_item(Key={'prompt_id': prompt_id})
-        if 'Item' not in response:
-            logger.error(f"Prompt with ID {prompt_id} not found")
-            return {
-                "statusCode": 404,
-                "body": f"Prompt with ID {prompt_id} not found"
-            }
-
-        prompt_content = response['Item']['content']
-        logger.info(f"Prompt found: {prompt_content}")
-    except Exception as e:
-        logger.error(f"Error retrieving prompt from DynamoDB: {str(e)}")
+    if not bedrock_settings:
         return {
             "statusCode": 500,
-            "body": "Error retrieving prompt from DynamoDB"
+            "body": "Configuration not found in DynamoDB."
         }
 
-    for key, value in parameters.items():
-        placeholder = f"{{{key}}}"
-        prompt_content = prompt_content.replace(placeholder, value)
+    temperature = bedrock_settings.get("temperature", 0.5)
+    max_tokens = bedrock_settings.get("maxTokens", 512)
+    top_p = bedrock_settings.get("topP", 0.9)
 
-    logger.info(f"Replaced prompt: {prompt_content}")
+    prompt = event.get("prompt")
+    if not prompt:
+        return {
+            "statusCode": 400,
+            "body": "Missing 'prompt' in the event."
+        }
 
-    return {
-        "statusCode": 200,
-        "body": f"Prompt with replaced values: {prompt_content}"
-    }
+    client = get_bedrock_client(region="us-west-2")
+    try:
+        response = send_to_sonnet(client, prompt, temperature, max_tokens, top_p)
+        return {
+            "statusCode": 200,
+            "body": response
+        }
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "body": f"Error invoking the model: {str(e)}"
+        }
