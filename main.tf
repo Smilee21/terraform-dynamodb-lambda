@@ -46,6 +46,22 @@ resource "aws_iam_role_policy_attachment" "dynamodb_access" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
 }
 
+# Adjuntar política personalizada para Bedrock
+resource "aws_iam_role_policy" "bedrock_invoke_policy" {
+  name   = "BedrockInvokePolicy"
+  role   = aws_iam_role.lambda_execution_role.name
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow",
+        Action   = "bedrock:InvokeModel",
+        Resource = "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0"
+      }
+    ]
+  })
+}
+
 # Recurso: Null Resource para empaquetar las dependencias de Lambda (si existen)
 resource "null_resource" "lambda_layer" {
   # Verificamos si el archivo requirements.txt tiene un hash para saber si tiene contenido

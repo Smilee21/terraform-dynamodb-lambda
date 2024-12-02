@@ -1,4 +1,4 @@
 provider "aws" {
-  region  = "us-west-2"   
-  profile = "antom"
+  region  = "us-east-1"   
+  profile = "antom_kumi"
 }

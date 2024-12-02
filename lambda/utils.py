@@ -22,3 +22,14 @@ def get_configuration(table, key):
     except Exception as e:
         logger.error(f"Error fetching configuration: {str(e)}")
         raise
+
+def get_prompt_from_db(table, prompt_id):
+    response = table.get_item(
+        Key={'pk': prompt_id, 'sk': 'METADATA'}
+    )
+
+    logger.info(f"Response from DynamoDB for prompt: {response}")
+    if 'Item' in response:
+        return response['Item']['content']  
+    else:
+        raise Exception(f"Prompt {prompt_id} not found in DB")
