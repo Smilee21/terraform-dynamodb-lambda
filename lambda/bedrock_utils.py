@@ -7,7 +7,7 @@ logger.setLevel(logging.INFO)
 def get_bedrock_client(region="us-east-1"):
     return boto3.client("bedrock-runtime", region_name=region)
 
-MODEL_ID = "anthropic.claude-3-5-sonnet-20240620-v1:0"
+MODEL_ID = "anthropic.claude-3-5-sonnet-20240620-v1:0" 
 
 def send_to_sonnet(client, prompt, temperature, max_tokens, top_p):
     conversation = [

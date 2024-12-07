@@ -1,6 +1,11 @@
+# Importa el módulo prefix
+module "prefix" {
+  source = "./prefix"
+}
+
 # Recurso: Cognito Identity Pool
 resource "aws_cognito_identity_pool" "identity_pool" {
-  identity_pool_name               = "${var.environment}-identity-pool"
+  identity_pool_name               = "${module.prefix.generated_prefix}-identity-pool"
   allow_unauthenticated_identities = false
 
   cognito_identity_providers {
@@ -11,7 +16,7 @@ resource "aws_cognito_identity_pool" "identity_pool" {
 
 # Recurso: IAM Role para usuarios autenticados
 resource "aws_iam_role" "authenticated_role" {
-  name               = "${var.environment}-authenticated-role"
+  name               = "${module.prefix.generated_prefix}-authenticated-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -33,7 +38,7 @@ resource "aws_iam_role" "authenticated_role" {
 }
 
 resource "aws_iam_policy" "authenticated_policy" {
-  name        = "${var.environment}-authenticated-policy"
+  name        = "${module.prefix.generated_prefix}-authenticated-policy"
   description = "Policy for authenticated users to invoke Lambda"
 
   policy = jsonencode({
@@ -53,18 +58,9 @@ resource "aws_iam_role_policy_attachment" "authenticated_policy_attachment" {
   policy_arn = aws_iam_policy.authenticated_policy.arn
 }
 
-# Recurso: Vinculación de roles con Identity Pool
-resource "aws_cognito_identity_pool_roles_attachment" "identity_pool_roles" {
-  identity_pool_id = aws_cognito_identity_pool.identity_pool.id
-
-  roles = {
-    authenticated = aws_iam_role.authenticated_role.arn
-  }
-}
-
 # Recurso: User Pool
 resource "aws_cognito_user_pool" "user_pool" {
-  name = "${var.environment}-user-pool"
+  name = "${module.prefix.generated_prefix}-user-pool"
 
   password_policy {
     minimum_length    = 8
@@ -81,19 +77,19 @@ resource "aws_cognito_user_pool" "user_pool" {
 
 # Recurso: User Pool Client
 resource "aws_cognito_user_pool_client" "user_pool_client" {
-  name         = "${var.environment}-user-pool-client"
+  name         = "${module.prefix.generated_prefix}-user-pool-client"
   user_pool_id = aws_cognito_user_pool.user_pool.id
 
   explicit_auth_flows = [
     "ALLOW_USER_PASSWORD_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH",
-    "ALLOW_USER_SRP_AUTH"  
+    "ALLOW_USER_SRP_AUTH"
   ]
 }
 
 # Recurso: Tabla DynamoDB
 resource "aws_dynamodb_table" "prompt_table" {
-  name           = var.dynamodb_table_name
+  name           = "${module.prefix.generated_prefix}-dynamodb-table"
   billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "pk"
   range_key      = "sk"
@@ -115,7 +111,7 @@ resource "aws_dynamodb_table" "prompt_table" {
 
 # Recurso: IAM Role para Lambda
 resource "aws_iam_role" "lambda_execution_role" {
-  name               = "${var.lambda_function_name}-execution-role"
+  name               = "${module.prefix.generated_prefix}-execution-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -130,7 +126,7 @@ resource "aws_iam_role" "lambda_execution_role" {
 
 # Recurso: Política Bedrock Invoke
 resource "aws_iam_role_policy" "bedrock_invoke_policy" {
-  name = "${var.environment}-bedrock-invoke-policy"
+  name = "${module.prefix.generated_prefix}-bedrock-invoke-policy"
   role = aws_iam_role.lambda_execution_role.id
 
   policy = jsonencode({
@@ -158,7 +154,7 @@ resource "aws_iam_role_policy_attachment" "dynamodb_full_access" {
 
 # Recurso: Lambda Function
 resource "aws_lambda_function" "my_lambda" {
-  function_name = var.lambda_function_name
+  function_name = "${module.prefix.generated_prefix}-lambda-function"
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.9"
   role          = aws_iam_role.lambda_execution_role.arn
@@ -174,4 +170,8 @@ resource "aws_lambda_function" "my_lambda" {
   tags = {
     Environment = var.environment
   }
+}
+
+module "react_app" {
+  source     = "./react_app"
 }

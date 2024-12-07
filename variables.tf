@@ -15,3 +15,10 @@ variable "environment" {
   type        = string
   default     = "dev"  
 }
+
+variable "build_path" {
+  description = "Ruta donde se encuentran los archivos de build de React"
+  type        = string
+  default     = "build"
+}
+ 
